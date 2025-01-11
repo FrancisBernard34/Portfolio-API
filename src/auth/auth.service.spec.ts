@@ -5,18 +5,19 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { Role } from '@prisma/client';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let prismaService: PrismaService;
-  let jwtService: JwtService;
-  let configService: ConfigService;
+  let _prismaService: PrismaService;
+  let _jwtService: JwtService;
+  let _configService: ConfigService;
 
   const mockUser = {
     id: 'user-id-1',
     email: 'test@example.com',
     password: 'hashedPassword123',
-    role: 'ADMIN',
+    role: Role.ADMIN,
     refreshTokens: [],
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -66,9 +67,9 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    prismaService = module.get<PrismaService>(PrismaService);
-    jwtService = module.get<JwtService>(JwtService);
-    configService = module.get<ConfigService>(ConfigService);
+    _prismaService = module.get<PrismaService>(PrismaService);
+    _jwtService = module.get<JwtService>(JwtService);
+    _configService = module.get<ConfigService>(ConfigService);
   });
 
   afterEach(() => {
@@ -79,8 +80,10 @@ describe('AuthService', () => {
     it('should return user without password when credentials are valid', async () => {
       const email = 'test@example.com';
       const password = 'password123';
-      
-      jest.spyOn(bcrypt, 'compare').mockImplementation(() => Promise.resolve(true));
+
+      jest
+        .spyOn(bcrypt, 'compare')
+        .mockImplementation(() => Promise.resolve(true));
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
 
       const result = await service.validateUser(email, password);
@@ -92,15 +95,23 @@ describe('AuthService', () => {
     it('should return null when user is not found', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
-      const result = await service.validateUser('wrong@email.com', 'password123');
+      const result = await service.validateUser(
+        'wrong@email.com',
+        'password123',
+      );
       expect(result).toBeNull();
     });
 
     it('should return null when password is invalid', async () => {
-      jest.spyOn(bcrypt, 'compare').mockImplementation(() => Promise.resolve(false));
+      jest
+        .spyOn(bcrypt, 'compare')
+        .mockImplementation(() => Promise.resolve(false));
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
 
-      const result = await service.validateUser('test@example.com', 'wrongpassword');
+      const result = await service.validateUser(
+        'test@example.com',
+        'wrongpassword',
+      );
       expect(result).toBeNull();
     });
   });
@@ -149,7 +160,9 @@ describe('AuthService', () => {
       const loginDto = { email: 'wrong@email.com', password: 'wrongpassword' };
       jest.spyOn(service, 'validateUser').mockResolvedValue(null);
 
-      await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
+      await expect(service.login(loginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -206,4 +219,4 @@ describe('AuthService', () => {
       );
     });
   });
-}); 
+});

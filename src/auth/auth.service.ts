@@ -88,7 +88,10 @@ export class AuthService {
         where: { id: payload.sub },
       });
 
-      if (!user || !user.refreshTokens.includes(refreshTokenDto.refresh_token)) {
+      if (
+        !user ||
+        !user.refreshTokens.includes(refreshTokenDto.refresh_token)
+      ) {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
@@ -115,7 +118,7 @@ export class AuthService {
           role: user.role,
         },
       };
-    } catch (error) {
+    } catch (_error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
