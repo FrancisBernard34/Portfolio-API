@@ -5,9 +5,14 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const isDevelopment = process.env.NODE_ENV === 'development';
 
-  // Enable CORS
-  app.enableCors();
+  // Enable CORS only for your frontend domain in production
+  app.enableCors({
+    origin: isDevelopment ? '*' : process.env.FRONTEND_URL,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    credentials: true,
+  });
 
   // Global prefix
   app.setGlobalPrefix('api');
@@ -21,48 +26,25 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger documentation
-  const config = new DocumentBuilder()
-    .setTitle('Portfolio API')
-    .setDescription(`
-      REST API for managing portfolio projects. This API provides endpoints for creating, reading, updating, and deleting portfolio projects.
-      
-      ## Features
-      - Project management with CRUD operations
-      - Category-based filtering
-      - Importance-based sorting
-      - Authentication with JWT
-      - Role-based access control
-      
-      ## Authentication
-      Protected endpoints require a JWT token. To get a token:
-      1. Use the /auth/login endpoint with valid credentials
-      2. Include the token in the Authorization header as: Bearer <token>
-      
-      ## Categories
-      Available project categories:
-      - DEFAULT (default value)
-      - FULL_STACK
-      - FRONT_END
-      - BACK_END
-      - MOBILE
-      - GAME
-    `)
-    .setVersion('1.0')
-    .addTag('Authentication', 'Endpoints for authentication and authorization')
-    .addTag('Projects', 'Endpoints for managing portfolio projects')
-    .addBearerAuth()
-    .setContact('Your Name', 'your-portfolio-url', 'your-email@example.com')
-    .setLicense('MIT', 'https://opensource.org/licenses/MIT')
-    .build();
+  // Only enable Swagger in development
+  if (isDevelopment) {
+    const config = new DocumentBuilder()
+      .setTitle('Portfolio API (Development Only)')
+      .setDescription('Private API for portfolio website management')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('docs', app, document);
+  }
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
   console.log(`Application is running on: http://localhost:${port}`);
-  console.log(`API Documentation available at: http://localhost:${port}/docs`);
+  if (isDevelopment) {
+    console.log(`API Documentation available at: http://localhost:${port}/docs`);
+  }
 }
 
 bootstrap();
