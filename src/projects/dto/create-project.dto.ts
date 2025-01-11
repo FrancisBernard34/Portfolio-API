@@ -48,12 +48,13 @@ export class CreateProjectDto {
   @IsNumber()
   importance: number;
 
-  @ApiProperty({
-    example: ['FULL_STACK', 'API'],
+  @ApiPropertyOptional({
+    example: 'FULL_STACK',
     enum: Category,
-    isArray: true,
+    default: Category.DEFAULT,
+    description: 'Project category (defaults to DEFAULT if not specified)',
   })
-  @IsArray()
-  @IsEnum(Category, { each: true })
-  categories: Category[];
+  @IsOptional()
+  @IsEnum(Category)
+  category?: Category;
 }

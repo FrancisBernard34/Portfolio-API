@@ -14,18 +14,18 @@ datasource db {
 }
 
 model Project {
-  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
   title        String
   description  String
   technologies String[]
   imageUrl     String
   liveUrl      String?
   githubUrl    String?
-  featured     Boolean    @default(false)
-  importance   Int        @default(0)
-  categories   Category[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  featured     Boolean  @default(false)
+  importance   Int      @default(0)
+  category     Category @default(DEFAULT)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("projects")
 }
@@ -47,9 +47,10 @@ enum Role {
 }
 
 enum Category {
+  DEFAULT
   FULL_STACK
   FRONT_END
-  API
+  BACK_END
   MOBILE
   GAME
 }

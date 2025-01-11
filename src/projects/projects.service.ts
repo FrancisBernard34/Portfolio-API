@@ -23,7 +23,7 @@ export class ProjectsService {
     const { category, featured, sort = 'importance', order = 'desc' } = query;
 
     const where = {
-      ...(category && { categories: { has: category } }),
+      ...(category && { category }),
       ...(featured !== undefined && { featured }),
     };
 
