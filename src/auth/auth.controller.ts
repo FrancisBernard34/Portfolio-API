@@ -17,11 +17,7 @@ export class AuthController {
     schema: {
       type: 'object',
       properties: {
-        accessToken: {
-          type: 'string',
-          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-        },
-        refreshToken: {
+        access_token: {
           type: 'string',
           example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
         },
@@ -42,18 +38,14 @@ export class AuthController {
   }
 
   @Post('refresh-token')
-  @ApiOperation({ summary: 'Get new tokens using refresh token' })
+  @ApiOperation({ summary: 'Get new access token using refresh token' })
   @ApiResponse({
     status: 200,
-    description: 'Tokens refreshed successfully',
+    description: 'Token refreshed successfully',
     schema: {
       type: 'object',
       properties: {
-        accessToken: {
-          type: 'string',
-          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-        },
-        refreshToken: {
+        access_token: {
           type: 'string',
           example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
         },

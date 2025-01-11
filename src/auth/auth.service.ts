@@ -24,23 +24,26 @@ export class AuthService {
     return null;
   }
 
-  private async generateTokens(userId: string, email: string) {
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(
-        { sub: userId, email },
-        {
-          secret: this.configService.get('JWT_SECRET'),
-          expiresIn: this.configService.get('JWT_EXPIRES_IN'),
-        },
-      ),
-      this.jwtService.signAsync(
-        { sub: userId, email, tokenId: uuidv4() },
-        {
-          secret: this.configService.get('JWT_REFRESH_SECRET'),
-          expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN'),
-        },
-      ),
-    ]);
+  private async generateAccessToken(userId: string, email: string) {
+    const tokenId = uuidv4();
+    const token = await this.jwtService.signAsync(
+      { sub: userId, email, tokenId },
+      {
+        secret: this.configService.get('JWT_SECRET'),
+        expiresIn: this.configService.get('JWT_EXPIRES_IN'),
+      },
+    );
+    return { token, tokenId };
+  }
+
+  private async generateRefreshToken(userId: string, email: string) {
+    const refreshToken = await this.jwtService.signAsync(
+      { sub: userId, email, tokenId: uuidv4() },
+      {
+        secret: this.configService.get('JWT_REFRESH_SECRET'),
+        expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN'),
+      },
+    );
 
     // Store refresh token in database
     await this.prisma.user.update({
@@ -52,7 +55,7 @@ export class AuthService {
       },
     });
 
-    return { accessToken, refreshToken };
+    return refreshToken;
   }
 
   async login(loginDto: LoginDto) {
@@ -61,16 +64,39 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email);
+    const { token: accessToken } = await this.generateAccessToken(user.id, user.email);
 
     return {
-      ...tokens,
+      access_token: accessToken,
       user: {
         id: user.id,
         email: user.email,
         role: user.role,
       },
     };
+  }
+
+  async generateNewRefreshToken(userId: string, email: string) {
+    return this.generateRefreshToken(userId, email);
+  }
+
+  async markTokenAsUsed(userId: string, tokenId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        usedTokens: {
+          push: tokenId,
+        },
+      },
+    });
+  }
+
+  async isTokenUsed(userId: string, tokenId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { usedTokens: true },
+    });
+    return user?.usedTokens.includes(tokenId) ?? false;
   }
 
   async refreshTokens(refreshTokenDto: RefreshTokenDto) {
@@ -107,11 +133,11 @@ export class AuthService {
         },
       });
 
-      // Generate new tokens
-      const tokens = await this.generateTokens(user.id, user.email);
+      // Generate new access token
+      const { token: accessToken } = await this.generateAccessToken(user.id, user.email);
 
       return {
-        ...tokens,
+        access_token: accessToken,
         user: {
           id: user.id,
           email: user.email,
@@ -124,13 +150,11 @@ export class AuthService {
   }
 
   async invalidateTokens(userId: string) {
-    // Remove all refresh tokens for the user
     await this.prisma.user.update({
       where: { id: userId },
       data: {
-        refreshTokens: {
-          set: [],
-        },
+        refreshTokens: { set: [] },
+        usedTokens: { set: [] },
       },
     });
   }
