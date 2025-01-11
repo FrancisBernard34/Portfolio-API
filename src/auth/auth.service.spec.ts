@@ -19,6 +19,7 @@ describe('AuthService', () => {
     password: 'hashedPassword123',
     role: Role.ADMIN,
     refreshTokens: [],
+    usedTokens: [],
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -117,37 +118,25 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('should return tokens and user data when login is successful', async () => {
+    it('should return access token and user data when login is successful', async () => {
       const loginDto = { email: 'test@example.com', password: 'password123' };
-      const mockTokens = {
-        accessToken: 'mock-access-token',
-        refreshToken: 'mock-refresh-token',
-      };
+      const mockAccessToken = 'mock-access-token';
 
       jest.spyOn(service, 'validateUser').mockResolvedValue({
         id: mockUser.id,
         email: mockUser.email,
         role: mockUser.role,
         refreshTokens: [],
+        usedTokens: [],
         createdAt: mockUser.createdAt,
         updatedAt: mockUser.updatedAt,
       });
 
-      mockJwtService.signAsync.mockImplementation((payload, options) => {
-        return options.secret === mockConfigService.get('JWT_SECRET')
-          ? Promise.resolve(mockTokens.accessToken)
-          : Promise.resolve(mockTokens.refreshToken);
-      });
-
-      mockPrismaService.user.update.mockResolvedValue({
-        ...mockUser,
-        refreshTokens: [mockTokens.refreshToken],
-      });
+      mockJwtService.signAsync.mockResolvedValue(mockAccessToken);
 
       const result = await service.login(loginDto);
 
-      expect(result).toHaveProperty('accessToken');
-      expect(result).toHaveProperty('refreshToken');
+      expect(result).toHaveProperty('access_token');
       expect(result).toHaveProperty('user');
       expect(result.user).toEqual({
         id: mockUser.id,
@@ -166,33 +155,60 @@ describe('AuthService', () => {
     });
   });
 
+  describe('token management', () => {
+    it('should mark token as used', async () => {
+      const userId = 'user-id';
+      const tokenId = 'token-id';
+
+      mockPrismaService.user.update.mockResolvedValue({ ...mockUser });
+
+      await service.markTokenAsUsed(userId, tokenId);
+
+      expect(mockPrismaService.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: {
+          usedTokens: {
+            push: tokenId,
+          },
+        },
+      });
+    });
+
+    it('should check if token is used', async () => {
+      const userId = 'user-id';
+      const tokenId = 'token-id';
+      const usedTokenId = 'used-token-id';
+
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        usedTokens: [usedTokenId],
+      });
+
+      const isUsedToken = await service.isTokenUsed(userId, usedTokenId);
+      const isUnusedToken = await service.isTokenUsed(userId, tokenId);
+
+      expect(isUsedToken).toBe(true);
+      expect(isUnusedToken).toBe(false);
+    });
+  });
+
   describe('refreshTokens', () => {
-    it('should return new tokens when refresh token is valid', async () => {
+    it('should return new access token when refresh token is valid', async () => {
       const refreshTokenDto = { refresh_token: 'valid-refresh-token' };
       const mockPayload = { sub: mockUser.id, email: mockUser.email };
-      const mockNewTokens = {
-        accessToken: 'new-access-token',
-        refreshToken: 'new-refresh-token',
-      };
+      const mockNewAccessToken = 'new-access-token';
 
       mockJwtService.verifyAsync.mockResolvedValue(mockPayload);
       mockPrismaService.user.findUnique.mockResolvedValue({
         ...mockUser,
         refreshTokens: [refreshTokenDto.refresh_token],
       });
-
-      mockJwtService.signAsync.mockImplementation((payload, options) => {
-        return options.secret === mockConfigService.get('JWT_SECRET')
-          ? Promise.resolve(mockNewTokens.accessToken)
-          : Promise.resolve(mockNewTokens.refreshToken);
-      });
+      mockJwtService.signAsync.mockResolvedValue(mockNewAccessToken);
 
       const result = await service.refreshTokens(refreshTokenDto);
 
-      expect(result).toHaveProperty('accessToken');
-      expect(result).toHaveProperty('refreshToken');
+      expect(result).toHaveProperty('access_token');
       expect(result).toHaveProperty('user');
-      expect(mockPrismaService.user.update).toHaveBeenCalledTimes(2);
+      expect(mockPrismaService.user.update).toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedException when refresh token is invalid', async () => {

@@ -54,7 +54,7 @@ describe('AuthController (e2e)', () => {
   });
 
   describe('/auth/login (POST)', () => {
-    it('should return tokens and user data when credentials are valid', () => {
+    it('should return access token and user data when credentials are valid', () => {
       return request(app.getHttpServer())
         .post('/api/auth/login')
         .send({
@@ -63,8 +63,8 @@ describe('AuthController (e2e)', () => {
         })
         .expect(201)
         .expect((res) => {
-          expect(res.body).toHaveProperty('accessToken');
-          expect(res.body).toHaveProperty('refreshToken');
+          expect(res.body).toHaveProperty('access_token');
+          expect(res.body).not.toHaveProperty('refresh_token');
           expect(res.body).toHaveProperty('user');
           expect(res.body.user).toHaveProperty('email', testUser.email);
           expect(res.body.user).toHaveProperty('role', testUser.role);
@@ -92,49 +92,114 @@ describe('AuthController (e2e)', () => {
     });
   });
 
-  describe('/auth/refresh-token (POST)', () => {
-    let refreshToken: string;
+  describe('Protected Routes', () => {
+    let accessToken: string;
+    let _refreshToken: string;
 
     beforeEach(async () => {
-      // Login to get a refresh token
-      const response = await request(app.getHttpServer())
+      // Login to get access token
+      const loginResponse = await request(app.getHttpServer())
         .post('/api/auth/login')
         .send({
           email: testUser.email,
           password: testUser.password,
         });
 
-      refreshToken = response.body.refreshToken;
+      accessToken = loginResponse.body.access_token;
     });
 
-    it('should return new tokens when refresh token is valid', () => {
-      return request(app.getHttpServer())
+    it('should receive refresh token after first protected route access', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/projects')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          title: 'Test Project',
+          description: 'Test Description',
+          technologies: ['Test'],
+          imageUrl: 'https://test.com/image.jpg',
+          featured: false,
+          importance: 1,
+        })
+        .expect(201);
+
+      expect(response.headers).toHaveProperty('x-refresh-token');
+      _refreshToken = response.headers['x-refresh-token'];
+    });
+
+    it('should not allow reuse of access token', async () => {
+      // First request should succeed and return refresh token
+      await request(app.getHttpServer())
+        .post('/api/projects')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          title: 'Test Project 1',
+          description: 'Test Description',
+          technologies: ['Test'],
+          imageUrl: 'https://test.com/image.jpg',
+          featured: false,
+          importance: 1,
+        })
+        .expect(201);
+
+      // Second request with same token should fail
+      await request(app.getHttpServer())
+        .post('/api/projects')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          title: 'Test Project 2',
+          description: 'Test Description',
+          technologies: ['Test'],
+          imageUrl: 'https://test.com/image.jpg',
+          featured: false,
+          importance: 1,
+        })
+        .expect(401);
+    });
+  });
+
+  describe('/auth/refresh-token (POST)', () => {
+    let refreshToken: string;
+
+    beforeEach(async () => {
+      // Login and make a protected request to get refresh token
+      const loginResponse = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({
+          email: testUser.email,
+          password: testUser.password,
+        });
+
+      const protectedResponse = await request(app.getHttpServer())
+        .post('/api/projects')
+        .set('Authorization', `Bearer ${loginResponse.body.access_token}`)
+        .send({
+          title: 'Test Project',
+          description: 'Test Description',
+          technologies: ['Test'],
+          imageUrl: 'https://test.com/image.jpg',
+          featured: false,
+          importance: 1,
+        });
+
+      refreshToken = protectedResponse.headers['x-refresh-token'];
+    });
+
+    it('should return new access token when refresh token is valid', async () => {
+      const response = await request(app.getHttpServer())
         .post('/api/auth/refresh-token')
         .send({
           refresh_token: refreshToken,
         })
-        .expect(201)
-        .expect((res) => {
-          expect(res.body).toHaveProperty('accessToken');
-          expect(res.body).toHaveProperty('refreshToken');
-          expect(res.body).toHaveProperty('user');
-          expect(res.body.user).toHaveProperty('email', testUser.email);
-          expect(res.body.user).toHaveProperty('role', testUser.role);
-          expect(res.body.refreshToken).not.toBe(refreshToken);
-        });
+        .expect(201);
+
+      expect(response.body).toHaveProperty('access_token');
+      expect(response.body).toHaveProperty('user');
+      expect(response.body.user).toHaveProperty('email', testUser.email);
+      expect(response.body.user).toHaveProperty('role', testUser.role);
     });
 
-    it('should return 401 when refresh token is invalid', () => {
-      return request(app.getHttpServer())
-        .post('/api/auth/refresh-token')
-        .send({
-          refresh_token: 'invalid-refresh-token',
-        })
-        .expect(401);
-    });
-
-    it('should return 401 when using the same refresh token twice', async () => {
-      // First refresh
+    it('should not allow reuse of refresh token', async () => {
+      // First refresh should succeed
       await request(app.getHttpServer())
         .post('/api/auth/refresh-token')
         .send({
@@ -142,11 +207,20 @@ describe('AuthController (e2e)', () => {
         })
         .expect(201);
 
-      // Second refresh with same token
-      return request(app.getHttpServer())
+      // Second refresh with same token should fail
+      await request(app.getHttpServer())
         .post('/api/auth/refresh-token')
         .send({
           refresh_token: refreshToken,
+        })
+        .expect(401);
+    });
+
+    it('should return 401 when refresh token is invalid', () => {
+      return request(app.getHttpServer())
+        .post('/api/auth/refresh-token')
+        .send({
+          refresh_token: 'invalid-refresh-token',
         })
         .expect(401);
     });
