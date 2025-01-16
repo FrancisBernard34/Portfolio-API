@@ -64,7 +64,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const { token: accessToken } = await this.generateAccessToken(user.id, user.email);
+    const { token: accessToken } = await this.generateAccessToken(
+      user.id,
+      user.email,
+    );
 
     return {
       access_token: accessToken,
@@ -134,7 +137,10 @@ export class AuthService {
       });
 
       // Generate new access token
-      const { token: accessToken } = await this.generateAccessToken(user.id, user.email);
+      const { token: accessToken } = await this.generateAccessToken(
+        user.id,
+        user.email,
+      );
 
       return {
         access_token: accessToken,

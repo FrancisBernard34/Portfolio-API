@@ -29,7 +29,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     // Check if token has been used
-    const isTokenUsed = await this.authService.isTokenUsed(user.id, payload.tokenId);
+    const isTokenUsed = await this.authService.isTokenUsed(
+      user.id,
+      payload.tokenId,
+    );
     if (isTokenUsed) {
       throw new UnauthorizedException('Token has already been used');
     }

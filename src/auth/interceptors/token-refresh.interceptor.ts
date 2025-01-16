@@ -22,10 +22,13 @@ export class TokenRefreshInterceptor implements NestInterceptor {
     // Only proceed if we have a user (meaning this is a protected route)
     if (request.user) {
       const { id, email } = request.user;
-      
+
       // Generate new refresh token
-      const refreshToken = await this.authService.generateNewRefreshToken(id, email);
-      
+      const refreshToken = await this.authService.generateNewRefreshToken(
+        id,
+        email,
+      );
+
       // Set refresh token in response header
       response.setHeader('X-Refresh-Token', refreshToken);
     }
@@ -36,4 +39,4 @@ export class TokenRefreshInterceptor implements NestInterceptor {
       }),
     );
   }
-} 
+}
