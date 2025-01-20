@@ -7,17 +7,14 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const isDevelopment = process.env.NODE_ENV === 'development';
 
-  // Enable CORS only for your frontend domain in production
   app.enableCors({
     origin: isDevelopment ? '*' : process.env.FRONTEND_URL,
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     credentials: true,
   });
 
-  // Global prefix
   app.setGlobalPrefix('api');
 
-  // Validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -26,7 +23,6 @@ async function bootstrap() {
     }),
   );
 
-  // Only enable Swagger in development
   if (isDevelopment) {
     const config = new DocumentBuilder()
       .setTitle('Portfolio API (Development Only)')

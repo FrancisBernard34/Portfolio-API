@@ -1,8 +1,9 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ValidateTokenDto } from './dto/validate-token.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -35,6 +36,15 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Post('validate-token')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Validate token' })
+  @ApiResponse({ status: 200, description: 'Token is valid' })
+  @ApiResponse({ status: 401, description: 'Invalid token' })
+  async validateToken(@Body() validateTokenDto: ValidateTokenDto) {
+    return this.authService.validateToken(validateTokenDto.token);
   }
 
   @Post('refresh-token')

@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { TokenExpiredError, JsonWebTokenError } from '@nestjs/jwt';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../common/prisma.service';
 import { LoginDto } from './dto/login.dto';
@@ -22,6 +23,25 @@ export class AuthService {
       return result;
     }
     return null;
+  }
+
+  async validateToken(token: string) {
+    try {
+      const validatedToken = await this.jwtService.verifyAsync(token, {
+        secret: this.configService.get('JWT_SECRET'),
+      });
+      return validatedToken;
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        throw new UnauthorizedException('Token expired');
+      }
+      if (error instanceof JsonWebTokenError) {
+        throw new UnauthorizedException('Invalid token');
+      }
+      throw new UnauthorizedException(
+        'An error occurred while validating the token',
+      );
+    }
   }
 
   private async generateAccessToken(userId: string, email: string) {
