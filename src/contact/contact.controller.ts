@@ -11,6 +11,7 @@ export class ContactController {
   @Post()
   @ApiOperation({ summary: 'Send a contact form message' })
   @ApiResponse({ status: 200, description: 'Email sent successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid email' })
   @ApiResponse({ status: 500, description: 'Failed to send email' })
   async sendContactMessage(@Body() contactDto: ContactDto) {
     await this.contactService.sendContactEmail(contactDto);

@@ -2,18 +2,21 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
+import * as nodemailer from 'nodemailer';
 
 describe('ContactController (e2e)', () => {
   let app: INestApplication;
-
-  // Mock nodemailer
-  jest.mock('nodemailer', () => ({
-    createTransport: jest.fn().mockReturnValue({
-      sendMail: jest.fn().mockResolvedValue(true),
-    }),
-  }));
+  let mockSendMail: jest.Mock;
 
   beforeEach(async () => {
+    const mockTransporter = {
+      sendMail: jest.fn().mockImplementation(() => Promise.resolve()),
+    };
+    mockSendMail = mockTransporter.sendMail;
+    jest
+      .spyOn(nodemailer, 'createTransport')
+      .mockReturnValue(mockTransporter as any);
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -32,6 +35,7 @@ describe('ContactController (e2e)', () => {
 
   afterEach(async () => {
     await app.close();
+    jest.restoreAllMocks();
   });
 
   describe('/api/contact (POST)', () => {
@@ -55,7 +59,7 @@ describe('ContactController (e2e)', () => {
         .send({ ...validContactData, email: 'invalid-email' })
         .expect(400)
         .expect((res) => {
-          expect(res.body.message).toContain('email');
+          expect(res.body.message[0]).toContain('email must be an email');
         });
     });
 
@@ -65,7 +69,9 @@ describe('ContactController (e2e)', () => {
         .send({ ...validContactData, message: 'short' })
         .expect(400)
         .expect((res) => {
-          expect(res.body.message).toContain('message');
+          expect(res.body.message[0]).toContain(
+            'message must be longer than or equal to 10 characters',
+          );
         });
     });
 
@@ -82,6 +88,20 @@ describe('ContactController (e2e)', () => {
               expect.stringContaining('message'),
             ]),
           );
+        });
+    });
+
+    it('should handle email service failure', async () => {
+      mockSendMail.mockImplementationOnce(() =>
+        Promise.reject(new Error('Send failed')),
+      );
+
+      return request(app.getHttpServer())
+        .post('/api/contact')
+        .send(validContactData)
+        .expect(500)
+        .expect((res) => {
+          expect(res.body.message).toBe('Failed to send email');
         });
     });
   });
