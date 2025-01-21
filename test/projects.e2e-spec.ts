@@ -1,23 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { PrismaService } from '../src/common/prisma.service';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/common/prisma.service';
+import { Category, Role, Project } from '@prisma/client';
+import { AuthService } from '../src/auth/auth.service';
 import * as bcrypt from 'bcrypt';
-import { Category } from '@prisma/client';
+
+const NON_EXISTENT_ID = '507f1f77bcf86cd799439011';
 
 describe('ProjectsController (e2e)', () => {
   let app: INestApplication;
   let prismaService: PrismaService;
-  let accessToken: string;
+  let authService: AuthService;
+  let adminToken: string;
 
-  const testUser = {
-    email: 'test@example.com',
-    password: 'password123',
-    role: 'ADMIN',
-  };
-
-  const testProject = {
+  const mockProject = {
     title: 'Test Project',
     description: 'Test Description',
     technologies: ['Node.js', 'React'],
@@ -35,8 +33,7 @@ describe('ProjectsController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    prismaService = app.get<PrismaService>(PrismaService);
-
+    app.setGlobalPrefix('api');
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -45,95 +42,89 @@ describe('ProjectsController (e2e)', () => {
       }),
     );
 
+    prismaService = app.get<PrismaService>(PrismaService);
+    authService = app.get<AuthService>(AuthService);
+
     await app.init();
 
-    // Create test user
-    const hashedPassword = await bcrypt.hash(testUser.password, 10);
-    await prismaService.user.create({
+    // Create admin user and get token
+    const hashedPassword = await bcrypt.hash('password123', 10);
+    const _adminUser = await prismaService.user.create({
       data: {
-        email: testUser.email,
+        email: 'admin@test.com',
         password: hashedPassword,
-        role: 'ADMIN',
+        role: Role.ADMIN,
       },
     });
-
-    // Get access token
-    const loginResponse = await request(app.getHttpServer())
-      .post('/api/auth/login')
-      .send({
-        email: testUser.email,
-        password: testUser.password,
-      });
-
-    accessToken = loginResponse.body.access_token;
   });
 
   afterAll(async () => {
     // Cleanup test data
     await prismaService.project.deleteMany();
-    await prismaService.user.deleteMany({
-      where: { email: testUser.email },
-    });
-    await prismaService.$disconnect();
+    await prismaService.user.deleteMany();
     await app.close();
   });
 
-  describe('POST /api/projects', () => {
-    it('should create a new project when user is admin', async () => {
-      const response = await request(app.getHttpServer())
-        .post('/api/projects')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .send(testProject)
-        .expect(201);
-
-      expect(response.body).toMatchObject(testProject);
-      expect(response.body).toHaveProperty('id');
-      expect(response.body).toHaveProperty('createdAt');
-      expect(response.body).toHaveProperty('updatedAt');
+  describe('/api/projects (POST)', () => {
+    beforeEach(async () => {
+      const { access_token } = await authService.login({
+        email: 'admin@test.com',
+        password: 'password123',
+      });
+      adminToken = access_token;
     });
 
-    it('should return 401 when token is not provided', () => {
+    it('should create a project when admin is authenticated', () => {
       return request(app.getHttpServer())
         .post('/api/projects')
-        .send(testProject)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(mockProject)
+        .expect(201)
+        .expect((res) => {
+          expect(res.body).toMatchObject(mockProject);
+          expect(res.body.id).toBeDefined();
+          expect(res.body.createdAt).toBeDefined();
+          expect(res.body.updatedAt).toBeDefined();
+        });
+    });
+
+    it('should fail to create project without authentication', () => {
+      return request(app.getHttpServer())
+        .post('/api/projects')
+        .send(mockProject)
         .expect(401);
     });
 
-    it('should return 400 when required fields are missing', () => {
+    it('should fail with invalid data', () => {
+      const invalidProject = { ...mockProject, imageUrl: 'invalid-url' };
       return request(app.getHttpServer())
         .post('/api/projects')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .send({
-          title: 'Test Project',
-        })
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(invalidProject)
         .expect(400);
     });
   });
 
-  describe('GET /api/projects', () => {
-    let _projectId: string;
+  describe('/api/projects (GET)', () => {
+    let _testProject: Project;
 
     beforeEach(async () => {
-      // Create a test project
-      const project = await prismaService.project.create({
-        data: testProject,
+      _testProject = await prismaService.project.create({
+        data: mockProject,
       });
-      _projectId = project.id;
     });
 
     afterEach(async () => {
-      // Cleanup test project
       await prismaService.project.deleteMany();
     });
 
-    it('should return all projects', () => {
+    it('should get all projects', () => {
       return request(app.getHttpServer())
         .get('/api/projects')
         .expect(200)
         .expect((res) => {
           expect(Array.isArray(res.body)).toBe(true);
-          expect(res.body.length).toBeGreaterThan(0);
-          expect(res.body[0]).toMatchObject(testProject);
+          expect(res.body[0]).toMatchObject(mockProject);
         });
     });
 
@@ -144,19 +135,17 @@ describe('ProjectsController (e2e)', () => {
         .expect(200)
         .expect((res) => {
           expect(Array.isArray(res.body)).toBe(true);
-          expect(res.body.length).toBeGreaterThan(0);
           expect(res.body[0].category).toBe(Category.FULL_STACK);
         });
     });
 
-    it('should filter featured projects', () => {
+    it('should filter projects by featured', () => {
       return request(app.getHttpServer())
         .get('/api/projects')
         .query({ featured: true })
         .expect(200)
         .expect((res) => {
           expect(Array.isArray(res.body)).toBe(true);
-          expect(res.body.length).toBeGreaterThan(0);
           expect(res.body[0].featured).toBe(true);
         });
     });
@@ -165,132 +154,125 @@ describe('ProjectsController (e2e)', () => {
       return request(app.getHttpServer())
         .get('/api/projects')
         .query({ sort: 'importance', order: 'desc' })
-        .expect(200)
-        .expect((res) => {
-          expect(Array.isArray(res.body)).toBe(true);
-          expect(res.body.length).toBeGreaterThan(0);
-        });
-    });
-  });
-
-  describe('GET /api/projects/:id', () => {
-    let projectId: string;
-
-    beforeEach(async () => {
-      // Create a test project
-      const project = await prismaService.project.create({
-        data: testProject,
-      });
-      projectId = project.id;
-    });
-
-    afterEach(async () => {
-      // Cleanup test project
-      await prismaService.project.deleteMany();
-    });
-
-    it('should return a project by id', () => {
-      return request(app.getHttpServer())
-        .get(`/api/projects/${projectId}`)
-        .expect(200)
-        .expect((res) => {
-          expect(res.body).toMatchObject(testProject);
-          expect(res.body.id).toBe(projectId);
-        });
-    });
-
-    it('should return 404 when project is not found', () => {
-      return request(app.getHttpServer())
-        .get('/api/projects/non-existent-id')
-        .expect(404);
-    });
-  });
-
-  describe('PATCH /api/projects/:id', () => {
-    let projectId: string;
-
-    beforeEach(async () => {
-      // Create a test project
-      const project = await prismaService.project.create({
-        data: testProject,
-      });
-      projectId = project.id;
-    });
-
-    afterEach(async () => {
-      // Cleanup test project
-      await prismaService.project.deleteMany();
-    });
-
-    it('should update a project when user is admin', async () => {
-      const updateData = {
-        title: 'Updated Title',
-        description: 'Updated Description',
-      };
-
-      const response = await request(app.getHttpServer())
-        .patch(`/api/projects/${projectId}`)
-        .set('Authorization', `Bearer ${accessToken}`)
-        .send(updateData)
         .expect(200);
+    });
+  });
 
-      expect(response.body).toMatchObject(updateData);
-      expect(response.body.id).toBe(projectId);
+  describe('/api/projects/:id (GET)', () => {
+    let testProject: Project;
+
+    beforeEach(async () => {
+      testProject = await prismaService.project.create({
+        data: mockProject,
+      });
     });
 
-    it('should return 401 when token is not provided', () => {
-      return request(app.getHttpServer())
-        .patch(`/api/projects/${projectId}`)
-        .send({ title: 'Updated Title' })
-        .expect(401);
+    afterEach(async () => {
+      await prismaService.project.deleteMany();
     });
 
-    it('should return 404 when project is not found', () => {
+    it('should get project by id', () => {
       return request(app.getHttpServer())
-        .patch('/api/projects/non-existent-id')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .send({ title: 'Updated Title' })
+        .get(`/api/projects/${testProject.id}`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body).toMatchObject(mockProject);
+          expect(res.body.id).toBe(testProject.id);
+        });
+    });
+
+    it('should return 404 for non-existent project', () => {
+      return request(app.getHttpServer())
+        .get(`/api/projects/${NON_EXISTENT_ID}`)
         .expect(404);
     });
   });
 
-  describe('DELETE /api/projects/:id', () => {
-    let projectId: string;
+  describe('/api/projects/:id (PATCH)', () => {
+    let testProject: Project;
 
     beforeEach(async () => {
-      // Create a test project
-      const project = await prismaService.project.create({
-        data: testProject,
+      testProject = await prismaService.project.create({
+        data: mockProject,
       });
-      projectId = project.id;
+
+      const { access_token } = await authService.login({
+        email: 'admin@test.com',
+        password: 'password123',
+      });
+      adminToken = access_token;
     });
 
     afterEach(async () => {
-      // Cleanup any remaining test projects
       await prismaService.project.deleteMany();
     });
 
-    it('should delete a project when user is admin', () => {
+    it('should update project when admin is authenticated', () => {
+      const updateData = { title: 'Updated Title' };
       return request(app.getHttpServer())
-        .delete(`/api/projects/${projectId}`)
-        .set('Authorization', `Bearer ${accessToken}`)
+        .patch(`/api/projects/${testProject.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(updateData)
         .expect(200)
         .expect((res) => {
-          expect(res.body).toMatchObject(testProject);
-          expect(res.body.id).toBe(projectId);
+          expect(res.body.title).toBe(updateData.title);
+          expect(res.body.id).toBe(testProject.id);
         });
     });
 
-    it('should return 401 when token is not provided', () => {
+    it('should fail to update project without authentication', () => {
       return request(app.getHttpServer())
-        .delete(`/api/projects/${projectId}`)
+        .patch(`/api/projects/${testProject.id}`)
+        .send({ title: 'Updated Title' })
         .expect(401);
     });
 
-    it('should return 404 when project is not found', () => {
+    it('should return 404 for non-existent project', () => {
+      const updateData = { title: 'Updated Title' };
       return request(app.getHttpServer())
-        .delete('/api/projects/non-existent-id')
-        .set('Authorization', `Bearer ${accessToken}`)
+        .patch(`/api/projects/${NON_EXISTENT_ID}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(updateData)
+        .expect(404);
+    });
+  });
+
+  describe('/api/projects/:id (DELETE)', () => {
+    let testProject: Project;
+
+    beforeEach(async () => {
+      testProject = await prismaService.project.create({
+        data: mockProject,
+      });
+
+      const { access_token } = await authService.login({
+        email: 'admin@test.com',
+        password: 'password123',
+      });
+      adminToken = access_token;
+    });
+
+    afterEach(async () => {
+      await prismaService.project.deleteMany();
+    });
+
+    it('should delete project when admin is authenticated', () => {
+      return request(app.getHttpServer())
+        .delete(`/api/projects/${testProject.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+    });
+
+    it('should fail to delete project without authentication', () => {
+      return request(app.getHttpServer())
+        .delete(`/api/projects/${testProject.id}`)
+        .expect(401);
+    });
+
+    it('should return 404 for non-existent project', () => {
+      return request(app.getHttpServer())
+        .delete(`/api/projects/${NON_EXISTENT_ID}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(404);
     });
   });

@@ -31,6 +31,7 @@ describe('AuthController (e2e)', () => {
       }),
     );
 
+    app.setGlobalPrefix('api');
     await app.init();
 
     // Create test user
