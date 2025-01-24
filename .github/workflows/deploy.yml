@@ -23,8 +23,8 @@ jobs:
           
           # Deploy via SSH
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key ${USERNAME}@${HOSTNAME} '
-            # Navigate to app directory
-            cd ~/app &&
+            # Navigate to your existing project directory
+            cd ~/Portfolio-API &&
             
             # Pull latest changes
             git fetch --all &&
