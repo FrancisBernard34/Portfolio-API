@@ -1,10 +1,7 @@
+
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - PORT=${PORT:-3001}
+    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
     ports:
       - "${PORT:-3001}:${PORT:-3001}"
     environment:
@@ -16,17 +13,14 @@ services:
       - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN}
       - EMAIL_USER=${EMAIL_USER}
       - EMAIL_APP_PASSWORD=${EMAIL_APP_PASSWORD}
-      - NODE_ENV=${NODE_ENV:-development}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - NODE_ENV=production
+      - FRONTEND_URL=${FRONTEND_URL}
     env_file:
-      - .env
-    volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
+      - .env.production
     restart: unless-stopped
     networks:
-      - dockernet
+      - app-network
 
 networks:
-  dockernet:
-    external: true
+  app-network:
+    driver: bridge 
