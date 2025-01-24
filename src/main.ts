@@ -8,7 +8,7 @@ async function bootstrap() {
   const isDevelopment = process.env.NODE_ENV === 'development';
 
   app.enableCors({
-    origin: isDevelopment ? '*' : process.env.FRONTEND_URL,
+    origin: isDevelopment ? '*' : [process.env.FRONTEND_URL],
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     credentials: true,
   });
