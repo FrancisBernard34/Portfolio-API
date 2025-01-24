@@ -13,6 +13,14 @@ async function bootstrap() {
     credentials: true,
   });
 
+  console.log(process.env.FRONTEND_URL);
+  console.log(process.env.FRONTEND_URL);
+  console.log(process.env.FRONTEND_URL);
+  console.log(process.env.FRONTEND_URL);
+  console.log(process.env.FRONTEND_URL);
+  console.log(process.env.FRONTEND_URL);
+  console.log(process.env.FRONTEND_URL);
+
   app.setGlobalPrefix('api');
 
   app.useGlobalPipes(
