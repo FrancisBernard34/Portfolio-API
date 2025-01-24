@@ -1,0 +1,38 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+.cursorrules
+*.swp
+*.swo
+
+# Build
+dist
+build
+
+# Environment (we'll copy these manually if needed)
+.env
+.env.*
+
+# Tests
+coverage
+.nyc_output
+test
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Misc
+.DS_Store
+*.log
+logs
+*.md
+.cursorrules 
