@@ -33,8 +33,8 @@ A NestJS-based REST API for managing portfolio projects. This backend service pr
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
-   cd my_portfolio_backend
+   git clone https://github.com/FrancisBernard34/Portfolio-API/
+   cd Portfolio-API
    ```
 
 2. Install dependencies:
