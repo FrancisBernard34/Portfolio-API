@@ -5,12 +5,12 @@
   <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="typescript">
   <img src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="prisma">
   <img src="https://img.shields.io/badge/Docker-blue?style=for-the-badge&logo=docker&logoColor=white" alt="docker">
-  <img src="https://img.shields.io/badge/AWS-232F3E?style=for-the-badge&logo=amazonwebservices&logoColor=white" alt="aws">
+  <img src="https://img.shields.io/badge/AWS EC2-232F3E?style=for-the-badge&logo=amazonwebservices&logoColor=white" alt="aws">
   <img src="https://img.shields.io/badge/-MongoDB-13aa52?style=for-the-badge&logo=mongodb&logoColor=white" alt="mongodb">
   <img src="https://img.shields.io/badge/Jest-323330?style=for-the-badge&logo=Jest&logoColor=white" alt="jest">
 </div>
 
-A NestJS-based REST API for managing portfolio projects. This backend service provides endpoints for creating, reading, updating, and deleting portfolio projects, with authentication and role-based access control.
+A NestJS-based REST API for managing portfolio projects. This backend service is deployed at an AWS EC2 instance and provides endpoints for creating, reading, updating, and deleting portfolio projects, with authentication and role-based access control.
 
 ## Features
 
@@ -73,15 +73,22 @@ A NestJS-based REST API for managing portfolio projects. This backend service pr
 
 ## Running the Application
 
-### Development
+### Without Docker
+
+#### Development
 ```bash
 npm run start:dev
 ```
 
-### Production
+#### Production
 ```bash
 npm run build
 npm run start
+```
+
+### With Docker
+```bash
+docker-compose up --build -d
 ```
 
 ## API Documentation (Only Available in Development Mode)
