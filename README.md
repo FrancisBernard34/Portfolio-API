@@ -1,6 +1,18 @@
 # Portfolio Backend API
 
-A NestJS-based REST API for managing portfolio projects. This backend service provides endpoints for creating, reading, updating, and deleting portfolio projects, with authentication and role-based access control.
+<div align="center">
+  <img src="https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" alt="nestjs">
+  <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="typescript">
+  <img src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="prisma">
+  <img src="https://img.shields.io/badge/Docker-blue?style=for-the-badge&logo=docker&logoColor=white" alt="docker">
+  <img src="https://img.shields.io/badge/AWS EC2-232F3E?style=for-the-badge&logo=amazonwebservices&logoColor=white" alt="aws">
+  <img src="https://img.shields.io/badge/-MongoDB-13aa52?style=for-the-badge&logo=mongodb&logoColor=white" alt="mongodb">
+  <img src="https://img.shields.io/badge/Jest-323330?style=for-the-badge&logo=Jest&logoColor=white" alt="jest">
+</div>
+
+#
+
+A NestJS-based REST API for managing portfolio projects. This backend service is deployed at an AWS EC2 instance and provides endpoints for creating, reading, updating, and deleting portfolio projects, with authentication and role-based access control.
 
 ## Features
 
@@ -23,8 +35,8 @@ A NestJS-based REST API for managing portfolio projects. This backend service pr
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
-   cd my_portfolio_backend
+   git clone https://github.com/FrancisBernard34/Portfolio-API/
+   cd Portfolio-API
    ```
 
 2. Install dependencies:
@@ -33,13 +45,22 @@ A NestJS-based REST API for managing portfolio projects. This backend service pr
    ```
 
 3. Set up environment variables:
-   Create a `.env` file in the root directory with the following variables:
+   Rename the `.env.example` to `.env` in the root directory and update the variables with your own data:
    ```env
+   PORT=3001
+   NODE_ENV="development"
    DATABASE_URL="your-mongodb-connection-string"
    JWT_SECRET="your-jwt-secret"
    JWT_EXPIRES_IN="7d"
-   PORT=3001
-   NODE_ENV="development"
+   JWT_REFRESH_SECRET=your-super-secret-refresh-key
+   JWT_REFRESH_EXPIRES_IN=7d
+   EMAIL_USER=your.email@gmail.com
+   EMAIL_APP_PASSWORD=your-16-character-app-password
+   ```
+
+4. Generate the Prisma Client
+   ```bash
+   npx prisma generate
    ```
 
 4. Push the database schema:
@@ -47,25 +68,32 @@ A NestJS-based REST API for managing portfolio projects. This backend service pr
    npx prisma db push
    ```
 
-5. Create an admin user:
+5. Create an admin user (login details at the `/src/scripts/create-admin.ts`):
    ```bash
    npm run create:admin
    ```
 
 ## Running the Application
 
-### Development
+### Without Docker
+
+#### Development
 ```bash
 npm run start:dev
 ```
 
-### Production
+#### Production
 ```bash
 npm run build
-npm run start:prod
+npm run start
 ```
 
-## API Documentation
+### With Docker
+```bash
+docker-compose up --build -d
+```
+
+## API Documentation (Only Available in Development Mode)
 
 Once the application is running, you can access the Swagger documentation at:
 ```
@@ -91,20 +119,9 @@ http://localhost:3001/docs
 - PATCH `/api/projects/:id` - Update a project
 - DELETE `/api/projects/:id` - Delete a project
 
-## Project Structure
+#### Contact Form (Public)
+- POST `/api/contact` - Process the front-end contact form
 
-```
-src/
-├── auth/                 # Authentication module
-│   ├── dto/             # Data transfer objects
-│   ├── guards/          # Authentication guards
-│   └── strategies/      # JWT strategy
-├── projects/            # Projects module
-│   ├── dto/             # Data transfer objects
-│   └── entities/        # Project entities
-├── common/              # Shared resources
-└── config/              # Configuration
-```
 
 ## Testing
 
@@ -114,9 +131,6 @@ npm run test
 
 # e2e tests
 npm run test:e2e
-
-# Test coverage
-npm run test:cov
 ```
 
 ## Security
@@ -126,13 +140,6 @@ npm run test:cov
 - Input validation using class-validator
 - MongoDB security best practices
 
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## License
 
