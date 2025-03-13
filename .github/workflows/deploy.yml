@@ -1,40 +1,44 @@
-name: Deploy to Production
-
+name: Deploy
 on:
   push:
-    branches: [ main ]
+    branches: main
+  pull_request:
+    branches: main
 
 jobs:
   deploy:
+    name: Deploy
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
 
-      - name: Deploy to EC2
-        env:
-          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
-          HOSTNAME: ${{ secrets.HOSTNAME }}
-          USERNAME: ${{ secrets.USERNAME }}
-        run: |
-          # Setup SSH
-          mkdir -p ~/.ssh
-          echo "$PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
+    permissions:
+      id-token: write # Needed for auth with Deno Deploy
+      contents: read # Needed to clone the repository
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install step
+        run: "npm install"
+
+      - name: Build step
+        run: "npx prisma generate && npx prisma migrate deploy && npm run build"
+
+      - name: Upload to Deno Deploy
+        uses: denoland/deployctl@v1
+        with:
+          project: "my-pottfolio-api"
+          entrypoint: "main.js"
+          root: "dist"
           
-          # Deploy via SSH
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key ${USERNAME}@${HOSTNAME} '
-            # Navigate to your existing project directory
-            cd ~/Portfolio-API &&
-            
-            # Pull latest changes
-            git fetch --all &&
-            git reset --hard origin/main &&
-            
-            # Restart the application with new changes
-            docker-compose -f docker-compose.yml down &&
-            docker-compose -f docker-compose.yml pull &&
-            docker-compose -f docker-compose.yml up -d --build &&
-            
-            # Clean up old images
-            docker image prune -f
-          ' 
+          
