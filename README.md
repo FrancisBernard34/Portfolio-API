@@ -1,6 +1,7 @@
 # Portfolio Backend API
 
 <div align="center">
+  <img src="https://github.com/FrancisBernard34/Portfolio-API/actions/workflows/ci.yml/badge.svg" alt="ci">
   <img src="https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" alt="nestjs">
   <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="typescript">
   <img src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="prisma">
@@ -27,9 +28,11 @@ A NestJS-based REST API for managing portfolio projects. This backend service is
 
 ## Prerequisites
 
-- Node.js (v16 or higher)
+- Node.js **v20 recommended** (v16+ supported)
 - MongoDB Atlas account or local MongoDB instance
 - npm or yarn package manager
+
+> **Note:** the JWT dependency chain relies on the legacy `buffer-equal-constant-time` package, which breaks on Node 26+. Use Node 20 LTS until the dependency is updated.
 
 ## Installation
 
@@ -63,12 +66,12 @@ A NestJS-based REST API for managing portfolio projects. This backend service is
    npx prisma generate
    ```
 
-4. Push the database schema:
+5. Push the database schema:
    ```bash
    npx prisma db push
    ```
 
-5. Create an admin user (login details at the `/src/scripts/create-admin.ts`):
+6. Create an admin user (login details at the `/src/scripts/create-admin.ts`):
    ```bash
    npm run create:admin
    ```
@@ -126,12 +129,14 @@ http://localhost:3001/docs
 ## Testing
 
 ```bash
-# Unit tests
+# Unit tests (no database required — Prisma is mocked)
 npm run test
 
-# e2e tests
+# e2e tests (requires a test MongoDB; see .env.test.example)
 npm run test:e2e
 ```
+
+CI runs lint, build, and unit tests on every push and pull request — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Security
 
